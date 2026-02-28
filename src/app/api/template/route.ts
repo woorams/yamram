@@ -53,9 +53,9 @@ export async function GET() {
   refWs['!cols'] = [{ wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 20 }];
   XLSX.utils.book_append_sheet(wb, refWs, '참고 (카테고리,계좌)');
 
-  const uint8 = XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as Uint8Array;
+  const uint8 = XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer;
 
-  return new NextResponse(uint8, {
+  return new NextResponse(Buffer.from(uint8), {
     headers: {
       'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       'Content-Disposition': 'attachment; filename="lamyam_template.xlsx"',
