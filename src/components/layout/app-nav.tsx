@@ -81,7 +81,7 @@ export function AppNav({ userName }: { userName: string }) {
       </aside>
 
       {/* Mobile bottom nav */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 flex border-t bg-card md:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 flex border-t bg-card shadow-[0_-2px_10px_rgba(0,0,0,0.05)] md:hidden">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive =
