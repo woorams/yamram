@@ -3,16 +3,12 @@ import { createClient } from '@/lib/supabase/server';
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient();
-  const month = request.nextUrl.searchParams.get('month');
+  const startDate = request.nextUrl.searchParams.get('start_date');
+  const endDate = request.nextUrl.searchParams.get('end_date');
 
-  if (!month) {
-    return NextResponse.json({ error: 'month parameter required' }, { status: 400 });
+  if (!startDate || !endDate) {
+    return NextResponse.json({ error: 'start_date and end_date parameters required' }, { status: 400 });
   }
-
-  const startDate = `${month}-01`;
-  const [year, mon] = month.split('-').map(Number);
-  const lastDay = new Date(year, mon, 0).getDate();
-  const endDate = `${month}-${String(lastDay).padStart(2, '0')}`;
 
   // Get monthly summary
   const { data: transactions } = await supabase
@@ -72,11 +68,22 @@ export async function GET(request: NextRequest) {
     .order('created_at', { ascending: false })
     .limit(5);
 
-  // Get budgets for the month
+  // Compute unique months covered by the date range for budget lookup
+  const months: string[] = [];
+  const cursor = new Date(startDate + 'T00:00:00');
+  const end = new Date(endDate + 'T00:00:00');
+  while (cursor <= end) {
+    const m = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`;
+    if (!months.includes(m)) months.push(m);
+    cursor.setMonth(cursor.getMonth() + 1);
+    cursor.setDate(1);
+  }
+
+  // Get budgets for all months in range
   const { data: budgets } = await supabase
     .from('budgets')
     .select('*, category:categories(*)')
-    .eq('month', month);
+    .in('month', months);
 
   // Calculate spent per budget
   const budgetsWithSpent = budgets?.map((b) => {

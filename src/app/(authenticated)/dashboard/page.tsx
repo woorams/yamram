@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { TrendingUp, TrendingDown, Wallet, ChevronLeft, ChevronRight } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet } from 'lucide-react';
 import { formatKRW } from '@/lib/constants';
 import type { DashboardData } from '@/types';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
@@ -18,29 +18,85 @@ const COLORS = [
   '#ec4899', '#06b6d4', '#f97316', '#6366f1', '#14b8a6',
 ];
 
+function formatDate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+type Preset = '7days' | '14days' | '28days' | 'thisMonth' | 'lastMonth';
+
+function getPresetRange(preset: Preset): { start: string; end: string } {
+  const today = new Date();
+  switch (preset) {
+    case '7days': {
+      const start = new Date(today);
+      start.setDate(today.getDate() - 6);
+      return { start: formatDate(start), end: formatDate(today) };
+    }
+    case '14days': {
+      const start = new Date(today);
+      start.setDate(today.getDate() - 13);
+      return { start: formatDate(start), end: formatDate(today) };
+    }
+    case '28days': {
+      const start = new Date(today);
+      start.setDate(today.getDate() - 27);
+      return { start: formatDate(start), end: formatDate(today) };
+    }
+    case 'thisMonth': {
+      const start = new Date(today.getFullYear(), today.getMonth(), 1);
+      const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      return { start: formatDate(start), end: formatDate(end) };
+    }
+    case 'lastMonth': {
+      const start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      const end = new Date(today.getFullYear(), today.getMonth(), 0);
+      return { start: formatDate(start), end: formatDate(end) };
+    }
+  }
+}
+
+const PRESETS: { key: Preset; label: string }[] = [
+  { key: '7days', label: '최근 7일' },
+  { key: '14days', label: '최근 14일' },
+  { key: '28days', label: '최근 28일' },
+  { key: 'thisMonth', label: '이번달' },
+  { key: 'lastMonth', label: '전월' },
+];
+
 export default function DashboardPage() {
-  const now = new Date();
-  const [month, setMonth] = useState(
-    `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-  );
+  const defaultRange = getPresetRange('thisMonth');
+  const [startDate, setStartDate] = useState(defaultRange.start);
+  const [endDate, setEndDate] = useState(defaultRange.end);
+  const [activePreset, setActivePreset] = useState<Preset | null>('thisMonth');
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
-    fetch(`/api/dashboard?month=${month}`)
+    fetch(`/api/dashboard?start_date=${startDate}&end_date=${endDate}`)
       .then((r) => r.json())
       .then((d) => setData(d))
       .finally(() => setLoading(false));
-  }, [month]);
+  }, [startDate, endDate]);
 
-  function changeMonth(delta: number) {
-    const [y, m] = month.split('-').map(Number);
-    const d = new Date(y, m - 1 + delta, 1);
-    setMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+  function applyPreset(preset: Preset) {
+    const range = getPresetRange(preset);
+    setStartDate(range.start);
+    setEndDate(range.end);
+    setActivePreset(preset);
   }
 
-  const [monthYear, monthNum] = month.split('-');
+  function handleDateChange(type: 'start' | 'end', value: string) {
+    setActivePreset(null);
+    if (type === 'start') setStartDate(value);
+    else setEndDate(value);
+  }
+
+  const displayStart = startDate.replace(/-/g, '.');
+  const displayEnd = endDate.replace(/-/g, '.');
 
   if (loading) {
     return (
@@ -58,17 +114,36 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Month selector */}
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="sm" onClick={() => changeMonth(-1)}>
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <h1 className="text-xl font-bold">
-          {monthYear}년 {parseInt(monthNum)}월
-        </h1>
-        <Button variant="ghost" size="sm" onClick={() => changeMonth(1)}>
-          <ChevronRight className="h-4 w-4" />
-        </Button>
+      {/* Date range selector */}
+      <div className="space-y-3">
+        <h1 className="text-xl font-bold">{displayStart} ~ {displayEnd}</h1>
+        <div className="flex flex-wrap gap-2">
+          {PRESETS.map((p) => (
+            <Button
+              key={p.key}
+              variant={activePreset === p.key ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => applyPreset(p.key)}
+            >
+              {p.label}
+            </Button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2">
+          <Input
+            type="date"
+            value={startDate}
+            onChange={(e) => handleDateChange('start', e.target.value)}
+            className="w-40"
+          />
+          <span className="text-muted-foreground">~</span>
+          <Input
+            type="date"
+            value={endDate}
+            onChange={(e) => handleDateChange('end', e.target.value)}
+            className="w-40"
+          />
+        </div>
       </div>
 
       {/* Summary cards */}
@@ -207,7 +282,7 @@ export default function DashboardPage() {
             ))}
             {(!data?.recent_transactions || data.recent_transactions.length === 0) && (
               <p className="py-4 text-center text-sm text-muted-foreground">
-                이번 달 거래 내역이 없습니다
+                해당 기간 거래 내역이 없습니다
               </p>
             )}
           </div>
