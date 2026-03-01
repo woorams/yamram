@@ -8,6 +8,7 @@ const settingsLinks = [
   { href: '/settings/categories', label: '카테고리' },
   { href: '/settings/accounts', label: '계좌' },
   { href: '/settings/budgets', label: '예산' },
+  { href: '/settings/recurring', label: '반복' },
 ];
 
 export function SettingsNav() {

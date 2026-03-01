@@ -137,6 +137,32 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- 6. Recurring transactions table
+CREATE TABLE IF NOT EXISTS recurring_transactions (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  type TEXT NOT NULL CHECK (type IN ('수입', '지출')),
+  amount BIGINT NOT NULL CHECK (amount > 0),
+  account_id UUID NOT NULL REFERENCES accounts(id),
+  category_id UUID REFERENCES categories(id),
+  day_of_month INTEGER NOT NULL CHECK (day_of_month BETWEEN 1 AND 31),
+  memo TEXT,
+  is_active BOOLEAN DEFAULT TRUE,
+  created_by UUID NOT NULL REFERENCES profiles(id),
+  last_processed_date DATE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_recurring_active ON recurring_transactions(is_active, day_of_month);
+
+ALTER TABLE recurring_transactions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Authenticated users can manage recurring_transactions" ON recurring_transactions
+  FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+CREATE POLICY "Service role full access to recurring_transactions" ON recurring_transactions
+  FOR ALL TO service_role USING (true) WITH CHECK (true);
+
 -- Function: Delete transaction with balance rollback
 CREATE OR REPLACE FUNCTION delete_transaction_with_balance(p_transaction_id UUID)
 RETURNS VOID AS $$

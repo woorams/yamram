@@ -79,6 +79,24 @@ export interface DashboardData {
   budgets: Budget[];
 }
 
+export interface RecurringTransaction {
+  id: string;
+  type: CategoryType;
+  amount: number;
+  account_id: string;
+  category_id: string | null;
+  day_of_month: number;
+  memo: string | null;
+  is_active: boolean;
+  created_by: string;
+  last_processed_date: string | null;
+  created_at: string;
+  updated_at: string;
+  // Joined fields
+  account?: Account;
+  category?: Category;
+}
+
 export interface ExcelRow {
   date: string;
   type: TransactionType;

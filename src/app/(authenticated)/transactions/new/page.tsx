@@ -25,6 +25,8 @@ export default function NewTransactionPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [dayOfMonth, setDayOfMonth] = useState(new Date().getDate());
 
   useEffect(() => {
     Promise.all([
@@ -41,6 +43,14 @@ export default function NewTransactionPage() {
       loadTransaction(editId);
     }
   }, [editId]);
+
+  // 날짜 변경 시 dayOfMonth 기본값 업데이트
+  useEffect(() => {
+    if (date) {
+      const d = new Date(date + 'T00:00:00');
+      setDayOfMonth(d.getDate());
+    }
+  }, [date]);
 
   async function loadTransaction(id: string) {
     const res = await fetch(`/api/transactions?page=1`);
@@ -84,7 +94,31 @@ export default function NewTransactionPage() {
     console.log('API response:', res.status, data);
 
     if (res.ok) {
-      toast.success(editId ? '수정되었습니다' : '등록되었습니다');
+      // 반복 거래 템플릿 생성
+      if (isRecurring && !editId && type !== '이체') {
+        const recurringBody = {
+          type,
+          amount: parseInt(amount),
+          account_id: accountId,
+          category_id: categoryId || null,
+          day_of_month: dayOfMonth,
+          memo: memo || null,
+        };
+
+        const recurRes = await fetch('/api/recurring-transactions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(recurringBody),
+        });
+
+        if (recurRes.ok) {
+          toast.success('거래 등록 + 매월 반복 설정 완료');
+        } else {
+          toast.success('거래는 등록되었지만 반복 설정에 실패했습니다');
+        }
+      } else {
+        toast.success(editId ? '수정되었습니다' : '등록되었습니다');
+      }
       router.push('/transactions');
     } else {
       const errMsg = typeof data.error === 'string' ? data.error : JSON.stringify(data.error);
@@ -97,6 +131,7 @@ export default function NewTransactionPage() {
     (c) => c.is_active && c.type === (type === '수입' ? '수입' : '지출')
   );
   const activeAccounts = accounts.filter((a) => a.is_active);
+  const showRecurring = !editId && type !== '이체';
 
   return (
     <div className="mx-auto max-w-lg">
@@ -212,6 +247,43 @@ export default function NewTransactionPage() {
                 required
               />
             </div>
+
+            {/* Recurring toggle */}
+            {showRecurring && (
+              <div className="space-y-3">
+                <label className="flex cursor-pointer items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={isRecurring}
+                    onChange={(e) => setIsRecurring(e.target.checked)}
+                    className="h-4 w-4 rounded border-border"
+                  />
+                  <span className="text-sm font-medium">매월 반복</span>
+                </label>
+
+                {isRecurring && (
+                  <div className="flex items-center gap-2 rounded-md border border-border bg-muted/50 p-3">
+                    <span className="text-sm">매월</span>
+                    <Select
+                      value={String(dayOfMonth)}
+                      onValueChange={(v) => setDayOfMonth(parseInt(v))}
+                    >
+                      <SelectTrigger className="w-20">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                          <SelectItem key={d} value={String(d)}>
+                            {d}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <span className="text-sm">일에 자동 등록</span>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Memo */}
             <div className="space-y-2">

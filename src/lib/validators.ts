@@ -27,6 +27,15 @@ export const budgetSchema = z.object({
   amount: z.number().nonnegative('예산은 0 이상이어야 합니다'),
 });
 
+export const recurringTransactionSchema = z.object({
+  type: z.enum(['수입', '지출']),
+  amount: z.number().positive('금액은 0보다 커야 합니다'),
+  account_id: z.string().uuid(),
+  category_id: z.string().uuid().nullable(),
+  day_of_month: z.number().int().min(1).max(31),
+  memo: z.string().max(200).nullable(),
+});
+
 export const loginSchema = z.object({
   email: z.email('올바른 이메일을 입력하세요'),
   password: z.string().min(1, '비밀번호를 입력하세요'),
@@ -36,4 +45,5 @@ export type TransactionInput = z.infer<typeof transactionSchema>;
 export type CategoryInput = z.infer<typeof categorySchema>;
 export type AccountInput = z.infer<typeof accountSchema>;
 export type BudgetInput = z.infer<typeof budgetSchema>;
+export type RecurringTransactionInput = z.infer<typeof recurringTransactionSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
