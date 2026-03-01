@@ -13,14 +13,56 @@ import { toast } from 'sonner';
 import { formatKRW } from '@/lib/constants';
 import type { Transaction, Account, Category } from '@/types';
 
+type Preset = '7days' | '14days' | '28days' | 'thisMonth' | 'lastMonth';
+
+function fmt(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function getPresetRange(preset: Preset): { start: string; end: string } {
+  const today = new Date();
+  switch (preset) {
+    case '7days': {
+      const s = new Date(today); s.setDate(today.getDate() - 6);
+      return { start: fmt(s), end: fmt(today) };
+    }
+    case '14days': {
+      const s = new Date(today); s.setDate(today.getDate() - 13);
+      return { start: fmt(s), end: fmt(today) };
+    }
+    case '28days': {
+      const s = new Date(today); s.setDate(today.getDate() - 27);
+      return { start: fmt(s), end: fmt(today) };
+    }
+    case 'thisMonth': {
+      const s = new Date(today.getFullYear(), today.getMonth(), 1);
+      const e = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      return { start: fmt(s), end: fmt(e) };
+    }
+    case 'lastMonth': {
+      const s = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      const e = new Date(today.getFullYear(), today.getMonth(), 0);
+      return { start: fmt(s), end: fmt(e) };
+    }
+  }
+}
+
+const PRESETS: { key: Preset; label: string }[] = [
+  { key: '7days', label: '최근 7일' },
+  { key: '14days', label: '최근 14일' },
+  { key: '28days', label: '최근 28일' },
+  { key: 'thisMonth', label: '이번달' },
+  { key: 'lastMonth', label: '전월' },
+];
+
 export default function TransactionsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const now = new Date();
-  const defaultStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-  const defaultEnd = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+  const defaultRange = getPresetRange('thisMonth');
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -28,9 +70,10 @@ export default function TransactionsPage() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(parseInt(searchParams.get('page') || '1'));
   const [totalPages, setTotalPages] = useState(1);
+  const [activePreset, setActivePreset] = useState<Preset | null>('thisMonth');
   const [filters, setFilters] = useState({
-    start_date: searchParams.get('start_date') || defaultStart,
-    end_date: searchParams.get('end_date') || defaultEnd,
+    start_date: searchParams.get('start_date') || defaultRange.start,
+    end_date: searchParams.get('end_date') || defaultRange.end,
     account_id: searchParams.get('account_id') || '',
     category_id: searchParams.get('category_id') || '',
     type: searchParams.get('type') || '',
@@ -77,6 +120,13 @@ export default function TransactionsPage() {
     }
   }
 
+  function applyPreset(preset: Preset) {
+    const range = getPresetRange(preset);
+    setFilters((f) => ({ ...f, start_date: range.start, end_date: range.end }));
+    setActivePreset(preset);
+    setPage(1);
+  }
+
   const typeColor = (type: string) => {
     if (type === '수입') return 'text-blue-600';
     if (type === '지출') return 'text-red-600';
@@ -97,19 +147,31 @@ export default function TransactionsPage() {
 
       {/* Filters */}
       <Card className="mb-4">
-        <CardContent className="pt-4">
+        <CardContent className="space-y-3 pt-4">
+          <div className="flex flex-wrap gap-2">
+            {PRESETS.map((p) => (
+              <Button
+                key={p.key}
+                variant={activePreset === p.key ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => applyPreset(p.key)}
+              >
+                {p.label}
+              </Button>
+            ))}
+          </div>
           <div className="flex flex-wrap gap-2">
             <Input
               type="date"
               value={filters.start_date}
-              onChange={(e) => { setFilters((f) => ({ ...f, start_date: e.target.value })); setPage(1); }}
+              onChange={(e) => { setFilters((f) => ({ ...f, start_date: e.target.value })); setActivePreset(null); setPage(1); }}
               className="w-40"
             />
             <span className="self-center">~</span>
             <Input
               type="date"
               value={filters.end_date}
-              onChange={(e) => { setFilters((f) => ({ ...f, end_date: e.target.value })); setPage(1); }}
+              onChange={(e) => { setFilters((f) => ({ ...f, end_date: e.target.value })); setActivePreset(null); setPage(1); }}
               className="w-40"
             />
             <Select
