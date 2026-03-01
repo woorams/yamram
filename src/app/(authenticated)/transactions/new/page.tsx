@@ -8,7 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import type { Account, Category, TransactionType } from '@/types';
+import { ReceiptScanner } from '@/components/receipt-scanner';
+import type { Account, Category, ReceiptRecognitionResult, TransactionType } from '@/types';
 
 export default function NewTransactionPage() {
   const router = useRouter();
@@ -127,6 +128,23 @@ export default function NewTransactionPage() {
     setLoading(false);
   }
 
+  function handleRecognized(result: ReceiptRecognitionResult) {
+    if (result.amount) setAmount(String(result.amount));
+    if (result.date) setDate(result.date);
+    if (result.memo) setMemo(result.memo);
+    setType('지출');
+
+    if (result.category_hint) {
+      const matched = categories.find(
+        (c) => c.is_active && c.type === '지출' && c.name === result.category_hint
+      );
+      if (matched) setCategoryId(matched.id);
+    }
+
+    const confidenceMsg = result.confidence === 'high' ? '높음' : result.confidence === 'medium' ? '보통' : '낮음';
+    toast.success(`영수증 인식 완료 (확신도: ${confidenceMsg})`);
+  }
+
   const filteredCategories = categories.filter(
     (c) => c.is_active && c.type === (type === '수입' ? '수입' : '지출')
   );
@@ -141,6 +159,11 @@ export default function NewTransactionPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Receipt Scanner (new mode only) */}
+            {!editId && (
+              <ReceiptScanner onRecognized={handleRecognized} />
+            )}
+
             {/* Type toggle */}
             <div className="space-y-2">
               <Label>구분</Label>

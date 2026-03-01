@@ -41,6 +41,14 @@ export const loginSchema = z.object({
   password: z.string().min(1, '비밀번호를 입력하세요'),
 });
 
+export const receiptRecognitionSchema = z.object({
+  amount: z.number().positive().nullable(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+  category_hint: z.string().nullable(),
+  memo: z.string().max(200).nullable(),
+  confidence: z.enum(['high', 'medium', 'low']),
+});
+
 export type TransactionInput = z.infer<typeof transactionSchema>;
 export type CategoryInput = z.infer<typeof categorySchema>;
 export type AccountInput = z.infer<typeof accountSchema>;

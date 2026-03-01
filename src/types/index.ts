@@ -117,3 +117,11 @@ export interface ParsedExcelData {
   valid: ExcelRow[];
   errors: ValidationError[];
 }
+
+export interface ReceiptRecognitionResult {
+  amount: number | null;
+  date: string | null;          // YYYY-MM-DD
+  category_hint: string | null; // 카테고리명 추정
+  memo: string | null;          // 상호명
+  confidence: 'high' | 'medium' | 'low';
+}
